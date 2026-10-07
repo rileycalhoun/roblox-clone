@@ -34,6 +34,69 @@ fn main() {
         .and_then(|t| clone_core::load_str(&t).ok())
         .unwrap_or_else(World::baseplate);
 
+    // Headless verification (no display): render viewport to PPM, or run solo play soak.
+    if args.iter().any(|a| a == "--screenshot") {
+        let out = args
+            .iter()
+            .skip_while(|a| a.as_str() != "--screenshot")
+            .nth(1)
+            .cloned()
+            .unwrap_or_else(|| "viewport.ppm".to_string());
+        let cam = Camera { yaw: 0.6, pitch: 0.5, dist: 22.0 };
+        let target = Vec3::new(0.0, 1.0, -2.0);
+        let mut frame = render::Frame::new();
+        let players = vec![(world.spawn.pos.x, world.spawn.pos.y, world.spawn.pos.z)];
+        render::render(&mut frame, &world, &players, cam.eye(target), cam.yaw, cam.pitch);
+        let mut bytes = format!("P6\n{} {}\n255\n", render::W, render::H).into_bytes();
+        for px in &frame.buf {
+            bytes.push(((px >> 16) & 0xff) as u8);
+            bytes.push(((px >> 8) & 0xff) as u8);
+            bytes.push((px & 0xff) as u8);
+        }
+        std::fs::write(&out, bytes).expect("write ppm");
+        println!("wrote {out} ({} parts)", world.parts.len());
+        return;
+    }
+    if args.iter().any(|a| a == "--soak") {
+        let ticks: usize = args
+            .iter()
+            .skip_while(|a| a.as_str() != "--soak")
+            .nth(1)
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(600);
+        let mut solo = clone_server::GameServer::new(world.clone());
+        let id = solo.add_player();
+        let mut respawns = 0u32;
+        let cam = Camera::default();
+        for t in 0..ticks {
+            // Same mapping as holding W (camera-relative forward).
+            let (fx, fz) = cam.ground_forward();
+            solo.set_input(id, Input { fwd: fz, side: fx, jump: t == 60 });
+            let before = solo.players.get(&id).unwrap().pos;
+            solo.tick_once(1.0 / 60.0);
+            let after = solo.players.get(&id).unwrap().pos;
+            // Kill-respawn teleports back near spawn.
+            if (after.x - world.spawn.pos.x).abs() < 0.01
+                && (after.z - world.spawn.pos.z).abs() < 0.01
+                && (before.x - after.x).abs() + (before.z - after.z).abs() > 1.0
+            {
+                respawns += 1;
+            }
+        }
+        let p = solo.players.get(&id).unwrap();
+        let mover_z = solo
+            .world
+            .parts
+            .iter()
+            .find(|p| p.kind == clone_core::PartKind::Mover)
+            .map(|p| p.pos.z);
+        println!(
+            "soak ticks={ticks} final={:.2},{:.2},{:.2} ground={} respawns={respawns} mover_z={mover_z:?}",
+            p.pos.x, p.pos.y, p.pos.z, p.on_ground
+        );
+        return;
+    }
+
     let mut mode = Mode::Studio;
     let mut cam = Camera::default();
     let mut target = Vec3::new(0.0, 2.0, 0.0);

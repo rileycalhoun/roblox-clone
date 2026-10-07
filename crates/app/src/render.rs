@@ -82,9 +82,11 @@ pub fn project(p: Vec3, eye: Vec3, yaw: f32, pitch: f32) -> Option<(i32, i32, f3
     let d = p.sub(eye);
     // Inverse orbit rotation: yaw then pitch.
     let (sy, cy) = (-yaw).sin_cos();
-    let x1 = d.x * cy - d.z * sy;
-    let z1 = d.x * sy + d.z * cy;
-    let (sp, cp) = (-pitch).sin_cos();
+    let x1 = d.x * cy + d.z * sy;
+    let z1 = -d.x * sy + d.z * cy;
+    // Inverse of eye placement (eye = Ry(yaw) * Rx(-pitch) * (0,0,dist)):
+    // view rotation is Rx(+pitch) * Ry(-yaw).
+    let (sp, cp) = pitch.sin_cos();
     let y2 = d.y * cp - z1 * sp;
     let z2 = d.y * sp + z1 * cp;
     // Camera looks along -Z.
@@ -201,8 +203,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn viewport_renders_world_headless() {
-        let mut world = World::baseplate();
+    fn orbit_target_projects_to_screen_center() {
+        use clone_core::camera::Camera;
+        for (yaw, pitch) in [(0.0, 0.35), (0.6, 0.5), (2.0, 0.2)] {
+            let cam = Camera { yaw, pitch, dist: 22.0 };
+            let target = Vec3::new(0.0, 1.0, -2.0);
+            let (sx, sy, depth) = project(target, cam.eye(target), yaw, pitch).expect("in front");
+            assert!((sx - W as i32 / 2).abs() < 3, "yaw={yaw} sx={sx}");
+            assert!((sy - H as i32 / 2).abs() < 3, "pitch={pitch} sy={sy}");
+            assert!(depth > 0.0);
+        }
+    }
+
+    #[test]
+    fn viewport_renders_world_headless() {        let mut world = World::baseplate();
         world.add_part(
             "Tower",
             Vec3::new(0.0, 5.0, 10.0),
