@@ -37,7 +37,7 @@ pub fn save_str(world: &World) -> String {
     ));
     for p in &world.parts {
         out.push_str(&format!(
-            "part {} {} {} {} {},{},{} anchored={}\n",
+            "part {} {} {} {} {},{},{} anchored={} kind={} script=\"{}\"\n",
             p.id,
             escape_name(&p.name),
             fmt_vec3(p.pos),
@@ -45,10 +45,23 @@ pub fn save_str(world: &World) -> String {
             p.color.0,
             p.color.1,
             p.color.2,
-            p.anchored
+            p.anchored,
+            p.kind.as_str(),
+            escape_script(&p.script),
         ));
     }
     out
+}
+
+fn escape_script(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('"', "'").replace('\n', "|")
+}
+
+fn unescape_script(s: &str) -> String {
+    let t = s.trim();
+    let t = t.strip_prefix('"').unwrap_or(t);
+    let t = t.strip_suffix('"').unwrap_or(t);
+    t.replace('|', "\n")
 }
 
 fn escape_name(n: &str) -> String {
@@ -96,7 +109,7 @@ pub fn load_str(s: &str) -> Result<World, String> {
                 world.spawn.pos = Vec3::new(x, y, z);
             }
             "part" => {
-                if toks.len() != 7 {
+                if toks.len() < 7 {
                     return Err(format!("line {}: bad part ({} toks)", i + 2, toks.len()));
                 }
                 let id: u32 = toks[1].parse().map_err(|_| "bad id")?;
@@ -109,8 +122,19 @@ pub fn load_str(s: &str) -> Result<World, String> {
                     "anchored=false" => false,
                     _ => return Err("bad anchored".into()),
                 };
+                let mut kind = crate::model::PartKind::Block;
+                let mut script = String::new();
+                for extra in toks.iter().skip(7) {
+                    if let Some(k) = extra.strip_prefix("kind=") {
+                        kind = crate::model::PartKind::from_str(k).ok_or("bad kind")?;
+                    } else if let Some(s) = extra.strip_prefix("script=") {
+                        script = unescape_script(s);
+                    } else {
+                        return Err(format!("line {}: bad extra '{extra}'", i + 2));
+                    }
+                }
                 max_id = max_id.max(id);
-                world.parts.push(crate::model::Part { id, name, pos, size, color, anchored });
+                world.parts.push(crate::model::Part { id, name, pos, size, color, anchored, kind, script });
             }
             other => return Err(format!("line {}: unknown '{other}'", i + 2)),
         }

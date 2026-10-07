@@ -1,0 +1,10 @@
+[package]
+name = "clone_app"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+clone_core = { path = "../core" }
+clone_player = { path = "../player" }
+clone_server = { path = "../server" }
+minifb = "0.28"

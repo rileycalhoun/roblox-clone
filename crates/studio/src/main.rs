@@ -9,6 +9,10 @@
 //!   save-default <out>               -> write baseplate place
 //!   preview <place> <out.ppm>        -> side-view PPM render (no deps)
 //!   playtest [place] [ticks]         -> run local physics headlessly, print final pos
+//!   assets                           -> list asset catalog keys
+//!   asset-add <place> <key> <x,y,z>  -> instantiate catalog asset (prints new file)
+//!   script-check <place> <id>        -> parse + print script rules
+//!   demo-place <out>                 -> write playable demo (spawn+kill+mover+tower)
 
 use clone_core::{Vec3, World};
 
@@ -111,6 +115,40 @@ fn main() {
             }
             let p = play.player_pos();
             println!("final pos={},{},{} on_ground={}", p.x, p.y, p.z, play.on_ground());
+        }
+        "assets" => {
+            for a in clone_core::assets::CATALOG {
+                println!("{} '{}' kind={} size={:?} color={:?}", a.key, a.label, a.kind.as_str(), a.size, a.color);
+            }
+        }
+        "asset-add" => {
+            let mut w = load_place(&args[2]);
+            let pos = parse_v3(&args[4]);
+            let id = clone_core::assets::instantiate(&mut w, &args[3], pos).expect("unknown asset key");
+            eprintln!("added asset id={id}");
+            print!("{}", clone_core::save_str(&w));
+        }
+        "script-check" => {
+            let w = load_place(&args[2]);
+            let id: u32 = args[3].parse().expect("id");
+            let p = w.get(id).expect("part id");
+            let rules = clone_core::script::parse_script(&p.script).expect("parse script");
+            for r in &rules {
+                println!("{:?} -> {:?}", r.trigger, r.action);
+            }
+            if rules.is_empty() {
+                println!("(no rules)");
+            }
+        }
+        "demo-place" => {
+            let mut w = World::baseplate();
+            w.spawn.pos = Vec3::new(0.0, 5.0, 0.0);
+            clone_core::assets::instantiate(&mut w, "spawn", Vec3::new(-6.0, 1.0, 0.0));
+            clone_core::assets::instantiate(&mut w, "kill", Vec3::new(6.0, 1.0, 0.0));
+            clone_core::assets::instantiate(&mut w, "mover", Vec3::new(0.0, 3.0, -10.0));
+            w.add_part("Tower", Vec3::new(0.0, 5.0, 10.0), Vec3::new(4.0, 10.0, 4.0), (200, 50, 50), true);
+            std::fs::write(&args[2], clone_core::save_str(&w)).expect("write");
+            eprintln!("wrote demo {}", &args[2]);
         }
         other => {
             eprintln!("unknown cmd: {other}");

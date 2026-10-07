@@ -2,6 +2,32 @@
 
 use crate::math::Vec3;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PartKind {
+    Block,
+    KillBrick,
+    Mover,
+}
+
+impl PartKind {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "block" => Some(Self::Block),
+            "kill" | "killbrick" => Some(Self::KillBrick),
+            "mover" => Some(Self::Mover),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Block => "block",
+            Self::KillBrick => "kill",
+            Self::Mover => "mover",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Part {
     pub id: u32,
@@ -10,6 +36,8 @@ pub struct Part {
     pub size: Vec3,
     pub color: (u8, u8, u8),
     pub anchored: bool,
+    pub kind: PartKind,
+    pub script: String,
 }
 
 impl Part {
@@ -76,6 +104,19 @@ impl World {
         color: (u8, u8, u8),
         anchored: bool,
     ) -> u32 {
+        self.add_part_kind(name, pos, size, color, anchored, PartKind::Block, "")
+    }
+
+    pub fn add_part_kind(
+        &mut self,
+        name: &str,
+        pos: Vec3,
+        size: Vec3,
+        color: (u8, u8, u8),
+        anchored: bool,
+        kind: PartKind,
+        script: &str,
+    ) -> u32 {
         let id = self.next_id;
         self.next_id += 1;
         self.parts.push(Part {
@@ -85,6 +126,8 @@ impl World {
             size,
             color,
             anchored,
+            kind,
+            script: script.to_string(),
         });
         id
     }
