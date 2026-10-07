@@ -38,3 +38,5 @@ YOUR TASKS:
         clone_app --screenshot renders all 4 assets+player (demo-viewport.png, visually confirmed);
         --soak 550: grounded z=-23.5, mover_z=-4.2 (script moved it), respawn event seen;
         fixed camera pitch+yaw sign bug (was looking at sky). Pending: human opens window + clicks/plays.
+     -> 2026-10-07: per-face near-plane culling (close boxes draw edges, no vanish-all);
+        20 tests green (13 core, 4 server, 3 app); soak stable; screenshot re-verified.
