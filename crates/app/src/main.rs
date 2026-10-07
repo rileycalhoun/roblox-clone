@@ -47,14 +47,37 @@ fn main() {
         let mut frame = render::Frame::new();
         let players = vec![(world.spawn.pos.x, world.spawn.pos.y, world.spawn.pos.z)];
         render::render(&mut frame, &world, &players, cam.eye(target), cam.yaw, cam.pitch);
-        let mut bytes = format!("P6\n{} {}\n255\n", render::W, render::H).into_bytes();
-        for px in &frame.buf {
-            bytes.push(((px >> 16) & 0xff) as u8);
-            bytes.push(((px >> 8) & 0xff) as u8);
-            bytes.push((px & 0xff) as u8);
-        }
-        std::fs::write(&out, bytes).expect("write ppm");
+        write_ppm(&out, &frame);
         println!("wrote {out} ({} parts)", world.parts.len());
+        return;
+    }
+    if args.iter().any(|a| a == "--screenshot-play") {
+        // Full play path headless: scripted W+Jump through GameServer, render
+        // from the real follow camera. Mirrors the interactive play branch.
+        let rest: Vec<String> = args
+            .iter()
+            .skip_while(|a| a.as_str() != "--screenshot-play")
+            .skip(1)
+            .cloned()
+            .collect();
+        let out = rest.first().cloned().unwrap_or_else(|| "play.ppm".to_string());
+        let ticks: usize = rest.get(1).and_then(|s| s.parse().ok()).unwrap_or(240);
+        let cam = Camera::default();
+        let mut solo = clone_server::GameServer::new(world.clone());
+        let id = solo.add_player();
+        let (fx, fz) = cam.ground_forward();
+        for t in 0..ticks {
+            solo.set_input(id, Input { fwd: fz, side: fx, jump: t == 60 });
+            solo.tick_once(1.0 / 60.0);
+        }
+        let me = solo.players.get(&id).unwrap().pos;
+        let look = Vec3::new(me.x, me.y + 2.0, me.z);
+        let mut frame = render::Frame::new();
+        let ps: Vec<(f32, f32, f32)> =
+            solo.positions().iter().map(|(_, v)| (v.x, v.y, v.z)).collect();
+        render::render(&mut frame, &solo.world, &ps, cam.eye(look), cam.yaw, cam.pitch);
+        write_ppm(&out, &frame);
+        println!("wrote {out} player={:.2},{:.2},{:.2}", me.x, me.y, me.z);
         return;
     }
     if args.iter().any(|a| a == "--soak") {
@@ -160,8 +183,10 @@ fn main() {
         // Tab toggles.
         if window.is_key_pressed(Key::Tab, minifb::KeyRepeat::No) {
             mode = if mode == Mode::Studio { Mode::Play } else { Mode::Studio };
-            // Sync solo world when returning to studio.
+            // Sync solo world when returning to studio. Restore mover bases
+            // first so saving persists the authored layout, not a live pose.
             if mode == Mode::Studio {
+                solo.restore_mover_bases();
                 world = solo.world.clone();
             } else {
                 solo.world = world.clone();
@@ -334,8 +359,17 @@ fn main() {
     }
 }
 
-fn nearest_part(world: &World, to: Vec3) -> Option<u32> {
-    let mut best: Option<(u32, f32)> = None;
+fn write_ppm(path: &str, frame: &render::Frame) {
+    let mut bytes = format!("P6\n{} {}\n255\n", render::W, render::H).into_bytes();
+    for px in &frame.buf {
+        bytes.push(((px >> 16) & 0xff) as u8);
+        bytes.push(((px >> 8) & 0xff) as u8);
+        bytes.push((px & 0xff) as u8);
+    }
+    std::fs::write(path, bytes).expect("write ppm");
+}
+
+fn nearest_part(world: &World, to: Vec3) -> Option<u32> {    let mut best: Option<(u32, f32)> = None;
     for p in &world.parts {
         let d = p.pos.sub(to);
         let dd = d.x * d.x + d.y * d.y + d.z * d.z;

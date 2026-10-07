@@ -100,6 +100,18 @@ impl GameServer {
             }
         }
     }
+
+    /// Write mover base positions back into the world (so saving after a
+    /// play session persists the authored layout, not a mid-oscillation pose).
+    pub fn restore_mover_bases(&mut self) {
+        for part in self.world.parts.iter_mut() {
+            if part.kind == clone_core::PartKind::Mover {
+                if let Some(base) = self.mover_base.get(&part.id) {
+                    part.pos = *base;
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -152,6 +164,30 @@ mod tests {
             srv.tick_once(1.0 / 60.0);
         }
         assert_eq!(srv.positions().len(), 2);
+    }
+
+    #[test]
+    fn restore_mover_bases_undoes_live_pose() {
+        use clone_core::PartKind;
+        let mut w = World::baseplate();
+        w.add_part_kind(
+            "Mover",
+            clone_core::Vec3::new(0.0, 3.0, -10.0),
+            clone_core::Vec3::new(6.0, 1.0, 6.0),
+            (80, 140, 230),
+            true,
+            PartKind::Mover,
+            "tick: move 0,0,6 amplitude 6 freq 0.25",
+        );
+        let mut srv = GameServer::new(w);
+        for _ in 0..30 {
+            srv.tick_once(1.0 / 60.0);
+        }
+        let live = srv.world.parts.iter().find(|p| p.name == "Mover").unwrap().pos.z;
+        assert!((live - -10.0).abs() > 0.1, "mover moved {live}");
+        srv.restore_mover_bases();
+        let base = srv.world.parts.iter().find(|p| p.name == "Mover").unwrap().pos.z;
+        assert!((base - -10.0).abs() < 1e-5, "base restored {base}");
     }
 
     #[test]
