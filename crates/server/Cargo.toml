@@ -1,0 +1,7 @@
+[package]
+name = "clone_server"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+clone_core = { path = "../core" }

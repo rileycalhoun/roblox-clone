@@ -1,0 +1,9 @@
+[workspace]
+members = ["crates/core", "crates/server", "crates/player", "crates/studio"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["roblox-clone"]
+license = "MIT"
