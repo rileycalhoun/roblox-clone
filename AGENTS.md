@@ -54,6 +54,10 @@ YOUR TASKS:
      -> 2026-10-07: release profile verified (docs hosting path): cargo build --release OK;
         release studio lists 27-part user level; release server + 2 release clients
         replicate 90 snapshots each (ids 1+2). Only human in-window play remains.
+     -> 2026-10-07: GPT subagent wrote clone_bot (snapshot-driven TCP player); 2 bots
+        patrolled 126+ units, 177 snapshots each seeing both ids. Kill audit: physics
+        resolver prevents overlap so touch needed grown-box probe (0.3) + test;
+        20 live kill-respawns through the protocol. 23 green, zero warnings.
      -> 2026-10-07: live-window pixel audit: tower/spawn/mover/blocks/player colors all
         correct (no render bug); suite 21 green; 2-player re-verified on the 27-part user
         level (90 snapshots each, ids 1+2); added README hosting section.
