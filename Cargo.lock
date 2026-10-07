@@ -53,6 +53,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "clone_bot"
+version = "0.1.0"
+dependencies = [
+ "clone_core",
+ "clone_player",
+]
+
+[[package]]
 name = "clone_core"
 version = "0.1.0"
 

@@ -54,6 +54,10 @@ impl NetClient {
         self.writer.write_all(encode_client(&m).as_bytes())
     }
 
+    pub fn set_read_timeout(&self, timeout: Duration) -> std::io::Result<()> {
+        self.reader.get_ref().set_read_timeout(Some(timeout))
+    }
+
     pub fn read_snapshot(&mut self) -> std::io::Result<ServerMsg> {
         let mut line = String::new();
         self.reader.read_line(&mut line)?;

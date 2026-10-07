@@ -70,11 +70,17 @@ impl GameServer {
                 clone_core::step_player(&self.world, p, &input, dt);
             }
         }
-        // Kill bricks: touch -> respawn.
+        // Kill bricks: touch -> respawn. The physics resolver keeps bodies
+        // separated (it reverts penetrating moves), so contact rarely equals
+        // true overlap: probe with a slightly grown box to catch pressed-against
+        // faces and resting-on-top contacts. Only kill-kind/scripted parts use
+        // the grown box, so normal collision is unaffected.
         let spawn = self.world.spawn.pos;
         for p in self.players.values_mut() {
             let min = p.min();
             let max = p.max();
+            let eps = Vec3::new(0.3, 0.3, 0.3);
+            let (min, max) = (min.sub(eps), max.add(eps));
             let touched_kill = self.world.parts.iter().any(|part| {
                 let kill_kind = part.kind == clone_core::PartKind::KillBrick;
                 let kill_script = clone_core::script::is_kill_script(&part.script);
@@ -127,6 +133,38 @@ mod tests {
         }
         let p = srv.players.get(&id).unwrap();
         assert!(p.on_ground);
+    }
+
+    #[test]
+    fn kill_wall_touch_respawns() {
+        use clone_core::PartKind;
+        let mut w = World::baseplate();
+        w.add_part_kind(
+            "Wall",
+            clone_core::Vec3::new(6.0, 3.0, 0.0),
+            clone_core::Vec3::new(1.0, 6.0, 4.0),
+            (220, 40, 40),
+            true,
+            PartKind::KillBrick,
+            "onTouch: respawn",
+        );
+        let mut srv = GameServer::new(w);
+        let id = srv.add_player();
+        // Walk full-speed into the wall like a live client; the physics
+        // resolver stops the body just short of overlap, so touch (not
+        // overlap) must trigger the respawn.
+        let input = clone_core::Input { fwd: 0.0, side: 1.0, jump: false };
+        let mut respawned = false;
+        for _ in 0..120 {
+            srv.set_input(id, input);
+            srv.tick_once(1.0 / 60.0);
+            let p = srv.players.get(&id).unwrap().pos;
+            if (p.x - 0.0).abs() < 1.5 && (p.y - 5.0).abs() < 0.6 {
+                respawned = true;
+                break;
+            }
+        }
+        assert!(respawned, "side contact with kill wall respawns");
     }
 
     #[test]
