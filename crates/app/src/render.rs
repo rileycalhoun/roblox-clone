@@ -152,22 +152,20 @@ pub fn render(frame: &mut Frame, world: &World, players: &[(f32, f32, f32)], eye
     for &i in &order {
         let p = &world.parts[i];
         let corners = box_corners(p.pos, p.size);
-        let mut scr = Vec::new();
-        for c in corners {
-            match project(c, eye, yaw, pitch) {
-                Some(s) => scr.push(s),
-                None => break,
-            }
-        }
-        if scr.len() != 8 {
-            continue;
-        }
+        // Per-corner projection: faces/edges with a corner behind the near
+        // plane are skipped individually, so big boxes (baseplate) still draw
+        // their visible faces when the camera is over them.
+        let scr: Vec<Option<(i32, i32, f32)>> =
+            corners.iter().map(|c| project(*c, eye, yaw, pitch)).collect();
         let base = rgb(p.color.0, p.color.1, p.color.2);
         // Top face fill.
-        let top = [(scr[4].0, scr[4].1), (scr[5].0, scr[5].1), (scr[6].0, scr[6].1), (scr[7].0, scr[7].1)];
-        frame.quad(top, base);
+        if let [Some(t0), Some(t1), Some(t2), Some(t3)] = [scr[4], scr[5], scr[6], scr[7]] {
+            frame.quad([(t0.0, t0.1), (t1.0, t1.1), (t2.0, t2.1), (t3.0, t3.1)], base);
+        }
         for (a, b) in EDGES {
-            frame.line(scr[a].0, scr[a].1, scr[b].0, scr[b].1, 0x101018);
+            if let (Some(pa), Some(pb)) = (scr[a], scr[b]) {
+                frame.line(pa.0, pa.1, pb.0, pb.1, 0x101018);
+            }
         }
     }
     // Players.
@@ -175,20 +173,15 @@ pub fn render(frame: &mut Frame, world: &World, players: &[(f32, f32, f32)], eye
         let pos = Vec3::new(*x, *y, *z);
         let size = Vec3::new(2.0, 5.0, 2.0);
         let corners = box_corners(pos, size);
-        let mut scr = Vec::new();
-        for c in corners {
-            match project(c, eye, yaw, pitch) {
-                Some(s) => scr.push(s),
-                None => break,
-            }
+        let scr: Vec<Option<(i32, i32, f32)>> =
+            corners.iter().map(|c| project(*c, eye, yaw, pitch)).collect();
+        if let [Some(t0), Some(t1), Some(t2), Some(t3)] = [scr[4], scr[5], scr[6], scr[7]] {
+            frame.quad([(t0.0, t0.1), (t1.0, t1.1), (t2.0, t2.1), (t3.0, t3.1)], 0xffe63a);
         }
-        if scr.len() != 8 {
-            continue;
-        }
-        let top = [(scr[4].0, scr[4].1), (scr[5].0, scr[5].1), (scr[6].0, scr[6].1), (scr[7].0, scr[7].1)];
-        frame.quad(top, 0xffe63a);
         for (a, b) in EDGES {
-            frame.line(scr[a].0, scr[a].1, scr[b].0, scr[b].1, 0x6a5a00);
+            if let (Some(pa), Some(pb)) = (scr[a], scr[b]) {
+                frame.line(pa.0, pa.1, pb.0, pb.1, 0x6a5a00);
+            }
         }
     }
 }
@@ -216,7 +209,8 @@ mod tests {
     }
 
     #[test]
-    fn viewport_renders_world_headless() {        let mut world = World::baseplate();
+    fn viewport_renders_world_headless() {
+        let mut world = World::baseplate();
         world.add_part(
             "Tower",
             Vec3::new(0.0, 5.0, 10.0),
@@ -230,5 +224,24 @@ mod tests {
         let bg = 0x181826;
         let painted = frame.buf.iter().filter(|&&c| c != bg).count();
         assert!(painted > 1000, "viewport drew {painted} px");
+    }
+
+    #[test]
+    fn close_camera_still_draws_partial_boxes() {
+        // Camera right next to the tower: some corners are behind the near
+        // plane. The box must still draw its visible edges, not vanish.
+        let mut world = World::empty();
+        world.add_part(
+            "Wall",
+            Vec3::new(0.0, 2.0, 0.0),
+            Vec3::new(4.0, 4.0, 1.0),
+            (200, 50, 50),
+            true,
+        );
+        let mut frame = Frame::new();
+        let eye = Vec3::new(0.0, 2.0, 3.0);
+        render(&mut frame, &world, &[], eye, 0.0, 0.0);
+        let edge = frame.buf.iter().filter(|&&c| c == 0x101018).count();
+        assert!(edge > 20, "visible edges drew {edge} px");
     }
 }
