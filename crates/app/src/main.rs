@@ -1,9 +1,11 @@
 mod render;
 
 use clone_core::{camera::Camera, Input, Vec3, World};
+use clone_player::PumpClient;
 use minifb::{Key, MouseButton, MouseMode, Window, WindowOptions};
-use std::sync::mpsc;
 use std::time::{Duration, Instant};
+
+type NetState = PumpClient;
 
 #[derive(PartialEq)]
 enum Mode {
@@ -152,13 +154,11 @@ fn main() {
 
     let mut frame = render::Frame::new();
     let mut last = Instant::now();
-    let mut tick: u64 = 0;
     let mut remote_players: Vec<(f32, f32, f32)> = vec![(0.0, 5.0, 0.0)];
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let dt = last.elapsed().as_secs_f32().min(0.05);
         last = Instant::now();
-        tick += 1;
 
         // --- camera orbit (both modes) ---
         if window.is_key_down(Key::Left) {
@@ -306,7 +306,7 @@ fn main() {
             }
 
             if let Some(n) = net.as_mut() {
-                n.send(Input { fwd: wf, side: ws, jump }, tick);
+                n.send(Input { fwd: wf, side: ws, jump });
                 n.poll(&mut remote_players);
                 // Camera follows first remote render pos (own id preferred).
                 let me = remote_players
@@ -380,95 +380,3 @@ fn nearest_part(world: &World, to: Vec3) -> Option<u32> {    let mut best: Optio
     best.map(|(id, _)| id)
 }
 
-struct NetState {
-    id: u32,
-    tx: std::sync::mpsc::Sender<clone_core::Input>,
-    rx: mpsc::Receiver<Vec<(f32, f32, f32)>>,
-}
-
-impl NetState {
-    fn connect(addr: &str, name: &str) -> std::io::Result<Self> {
-        use std::io::{BufRead, BufReader, Write};
-        use std::net::TcpStream;
-        let stream = TcpStream::connect(addr)?;
-        stream.set_read_timeout(Some(Duration::from_secs(5)))?;
-        let mut w = stream.try_clone()?;
-        let mut r = BufReader::new(stream);
-        let hello = clone_core::net::encode_client(&clone_core::net::ClientMsg::Hello {
-            name: name.to_string(),
-        });
-        w.write_all(hello.as_bytes())?;
-        let mut line = String::new();
-        r.read_line(&mut line)?;
-        let id = match clone_core::net::decode_server(&line) {
-            Some(clone_core::net::ServerMsg::Welcome { id }) => id,
-            _ => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    "bad welcome",
-                ))
-            }
-        };
-        // IO thread: owns sockets, main thread sends inputs + receives player lists.
-        let (itx, irx) = mpsc::channel::<clone_core::Input>();
-        let (otx, orx) = mpsc::channel::<Vec<(f32, f32, f32)>>();
-        std::thread::spawn(move || {
-            let mut writer = w;
-            let mut reader = r;
-            let mut seq = 0u32;
-            let mut tick = 0u64;
-            loop {
-                // Drain latest input (non-blocking).
-                let mut cur: Option<clone_core::Input> = None;
-                while let Ok(inp) = irx.try_recv() {
-                    cur = Some(inp);
-                }
-                if let Some(inp) = cur {
-                    seq += 1;
-                    tick += 1;
-                    let msg = clone_core::net::ClientMsg::Input {
-                        seq,
-                        tick,
-                        fwd: inp.fwd,
-                        side: inp.side,
-                        jump: inp.jump,
-                    };
-                    if writer.write_all(clone_core::net::encode_client(&msg).as_bytes()).is_err() {
-                        break;
-                    }
-                }
-                // Try one snapshot line with short timeout.
-                reader
-                    .get_ref()
-                    .set_read_timeout(Some(Duration::from_millis(5)))
-                    .ok();
-                let mut line = String::new();
-                match reader.read_line(&mut line) {
-                    Ok(0) => break,
-                    Ok(_) => {
-                        if let Some(clone_core::net::ServerMsg::Snapshot { players, .. }) =
-                            clone_core::net::decode_server(&line)
-                        {
-                            let list: Vec<(f32, f32, f32)> =
-                                players.iter().map(|(_, v)| (v.x, v.y, v.z)).collect();
-                            let _ = otx.send(list);
-                        }
-                    }
-                    Err(_) => {}
-                }
-                std::thread::sleep(Duration::from_millis(16));
-            }
-        });
-        Ok(Self { id, tx: itx, rx: orx })
-    }
-
-    fn send(&mut self, input: Input, _tick: u64) {
-        let _ = self.tx.send(input);
-    }
-
-    fn poll(&mut self, out: &mut Vec<(f32, f32, f32)>) {
-        while let Ok(list) = self.rx.try_recv() {
-            *out = list;
-        }
-    }
-}
