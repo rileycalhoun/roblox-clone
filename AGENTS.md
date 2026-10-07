@@ -51,6 +51,9 @@ YOUR TASKS:
         Play-path screenshot of user level visually confirmed (docs-user-level.png).
      -> 2026-10-07: GUI --join path now covered: NetState moved to clone_player as
         PumpClient (shared, no dup) + ephemeral-port handshake/snapshot test; 22 green.
+     -> 2026-10-07: release profile verified (docs hosting path): cargo build --release OK;
+        release studio lists 27-part user level; release server + 2 release clients
+        replicate 90 snapshots each (ids 1+2). Only human in-window play remains.
      -> 2026-10-07: live-window pixel audit: tower/spawn/mover/blocks/player colors all
         correct (no render bug); suite 21 green; 2-player re-verified on the 27-part user
         level (90 snapshots each, ids 1+2); added README hosting section.
