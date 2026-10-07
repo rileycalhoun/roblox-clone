@@ -195,3 +195,26 @@ fn dist2(a: Vec3, b: Vec3) -> f32 {
     let d = a.sub(b);
     d.x * d.x + d.y * d.y + d.z * d.z
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn viewport_renders_world_headless() {
+        let mut world = World::baseplate();
+        world.add_part(
+            "Tower",
+            Vec3::new(0.0, 5.0, 10.0),
+            Vec3::new(4.0, 10.0, 4.0),
+            (200, 50, 50),
+            true,
+        );
+        let mut frame = Frame::new();
+        let eye = Vec3::new(0.0, 8.0, 24.0);
+        render(&mut frame, &world, &[(0.0, 5.0, 0.0)], eye, 0.0, 0.2);
+        let bg = 0x181826;
+        let painted = frame.buf.iter().filter(|&&c| c != bg).count();
+        assert!(painted > 1000, "viewport drew {painted} px");
+    }
+}

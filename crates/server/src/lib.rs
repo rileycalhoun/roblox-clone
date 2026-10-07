@@ -153,4 +153,26 @@ mod tests {
         }
         assert_eq!(srv.positions().len(), 2);
     }
+
+    #[test]
+    fn mover_platform_displaces() {
+        use clone_core::PartKind;
+        let mut w = World::baseplate();
+        w.add_part_kind(
+            "Mover",
+            clone_core::Vec3::new(0.0, 3.0, -10.0),
+            clone_core::Vec3::new(6.0, 1.0, 6.0),
+            (80, 140, 230),
+            true,
+            PartKind::Mover,
+            "tick: move 0,0,6 amplitude 6 freq 0.25",
+        );
+        let mut srv = GameServer::new(w);
+        let z0 = srv.world.parts.iter().find(|p| p.name == "Mover").unwrap().pos.z;
+        for _ in 0..60 {
+            srv.tick_once(1.0 / 60.0);
+        }
+        let z1 = srv.world.parts.iter().find(|p| p.name == "Mover").unwrap().pos.z;
+        assert!((z1 - z0).abs() > 0.5, "mover z {z0} -> {z1}");
+    }
 }

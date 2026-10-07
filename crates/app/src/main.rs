@@ -68,7 +68,6 @@ fn main() {
     let mut last = Instant::now();
     let mut tick: u64 = 0;
     let mut remote_players: Vec<(f32, f32, f32)> = vec![(0.0, 5.0, 0.0)];
-    let mut solo_input = Input::default();
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let dt = last.elapsed().as_secs_f32().min(0.05);
@@ -204,8 +203,7 @@ fn main() {
             let jump = window.is_key_down(Key::Space);
             // Note: physics Input uses fwd->Z, side->X; camera yaw=0 faces -Z.
             // Our ground_forward already points -Z at yaw 0, so map directly.
-            let _ = (wf, ws);
-            solo_input = Input { fwd: wf, side: ws, jump };
+            let solo_input = Input { fwd: wf, side: ws, jump };
 
             if window.is_key_pressed(Key::R, minifb::KeyRepeat::No) {
                 if let Some(n) = net.as_mut() {
@@ -322,7 +320,6 @@ impl NetState {
             let mut reader = r;
             let mut seq = 0u32;
             let mut tick = 0u64;
-            let mut latest: Vec<(f32, f32, f32)> = Vec::new();
             loop {
                 // Drain latest input (non-blocking).
                 let mut cur: Option<clone_core::Input> = None;
@@ -355,8 +352,9 @@ impl NetState {
                         if let Some(clone_core::net::ServerMsg::Snapshot { players, .. }) =
                             clone_core::net::decode_server(&line)
                         {
-                            latest = players.iter().map(|(_, v)| (v.x, v.y, v.z)).collect();
-                            let _ = otx.send(latest.clone());
+                            let list: Vec<(f32, f32, f32)> =
+                                players.iter().map(|(_, v)| (v.x, v.y, v.z)).collect();
+                            let _ = otx.send(list);
                         }
                     }
                     Err(_) => {}

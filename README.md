@@ -31,6 +31,19 @@ cargo test
 
 Verified: client falls from spawn y=5 to ground y=2.5 then moves at 16 u/s, snapshots at 20 Hz.
 
+## v0.2 playable demo
+
+```sh
+cargo test  # 18 tests green
+./target/debug/clone_studio demo-place demo.rplace
+./target/debug/clone_studio assets
+./target/debug/clone_server 127.0.0.1:8772 demo.rplace &
+./target/debug/clone_app demo.rplace                       # Tab studio/play, 1-4 + click place, WASD+space
+./target/debug/clone_app demo.rplace --join 127.0.0.1:8772 --name you   # play with friends
+```
+
+Scripting (`onJoin/onTouch/tick`): `clone_studio script-check demo.rplace 3`.
+
 ## Layout
 
 - `crates/core`: math/model/physics/place/net/preview (std only)

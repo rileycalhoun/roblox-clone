@@ -186,4 +186,22 @@ mod tests {
         assert_eq!(back.parts.len(), w.parts.len());
         assert_eq!(back.spawn.pos, w.spawn.pos);
     }
+
+    #[test]
+    fn roundtrip_preserves_kind_and_script() {
+        let mut w = World::empty();
+        w.add_part_kind(
+            "Kill",
+            Vec3::new(6.0, 1.0, 0.0),
+            Vec3::new(4.0, 1.0, 4.0),
+            (220, 40, 40),
+            true,
+            crate::model::PartKind::KillBrick,
+            "onTouch: respawn",
+        );
+        let back = load_str(&save_str(&w)).expect("load");
+        let p = &back.parts[0];
+        assert_eq!(p.kind, crate::model::PartKind::KillBrick);
+        assert!(p.script.contains("respawn"));
+    }
 }

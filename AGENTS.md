@@ -33,3 +33,6 @@ YOUR TASKS:
    - [x] Play game with friends (server browser/join, 2+ players replicated 20Hz)
      -> clone_app --join addr + NetState thread; verified alice(id2)+bob(id1) both see 2-player snapshots 20Hz
    - [ ] Verify end-to-end playable + push with gh
+     -> 2026-10-07: 18 tests green (13 core incl. script/kind roundtrip, 4 server incl. mover+kill+2p, 1 app viewport);
+        demo.rplace list/script-check/playtest grounded OK; alice+bob 90 snapshots each see ids 1+2;
+        clone_app runs 3s no crash. Pending: human opens window + clicks/plays.
