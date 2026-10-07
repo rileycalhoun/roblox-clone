@@ -34,7 +34,7 @@ Verified: client falls from spawn y=5 to ground y=2.5 then moves at 16 u/s, snap
 ## v0.2 playable demo
 
 ```sh
-cargo test  # 21 tests green (13 core, 5 server, 3 app)
+cargo test  # 22 tests green (13 core, 5 server, 1 player pump, 3 app)
 ./target/debug/clone_studio demo-place demo.rplace
 ./target/debug/clone_studio assets
 ./target/debug/clone_server 127.0.0.1:8772 demo.rplace &
