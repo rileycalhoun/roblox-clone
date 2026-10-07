@@ -44,3 +44,8 @@ YOUR TASKS:
         title HUD "STUDIO /tmp/v3.rplace | asset=block | parts=5 | Tab=play ...", world renders
         (spawn/player/mover/kill/tower/grid). Keystroke injection blocked by OS (1002),
         so Tab/play-toggle needs a human hand. Window left running for the user.
+     -> 2026-10-07: USER BUILT IN THE STUDIO unprompted: /tmp/v3.rplace grew 5->27 parts
+        (22 gray blocks placed + S saved). Solved phantom-count + frozen-player mysteries.
+        Fixed Play->Studio toggle persisting live mover pose (restore_mover_bases + test);
+        repaired drifted mover in the user file via studio move. 21 tests green.
+        Play-path screenshot of user level visually confirmed (docs-user-level.png).
