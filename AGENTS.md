@@ -40,3 +40,7 @@ YOUR TASKS:
         fixed camera pitch+yaw sign bug (was looking at sky). Pending: human opens window + clicks/plays.
      -> 2026-10-07: per-face near-plane culling (close boxes draw edges, no vanish-all);
         20 tests green (13 core, 4 server, 3 app); soak stable; screenshot re-verified.
+     -> 2026-10-07: LIVE window photographed open on the Mac (docs-live-studio.png):
+        title HUD "STUDIO /tmp/v3.rplace | asset=block | parts=5 | Tab=play ...", world renders
+        (spawn/player/mover/kill/tower/grid). Keystroke injection blocked by OS (1002),
+        so Tab/play-toggle needs a human hand. Window left running for the user.
