@@ -49,3 +49,6 @@ YOUR TASKS:
         Fixed Play->Studio toggle persisting live mover pose (restore_mover_bases + test);
         repaired drifted mover in the user file via studio move. 21 tests green.
         Play-path screenshot of user level visually confirmed (docs-user-level.png).
+     -> 2026-10-07: live-window pixel audit: tower/spawn/mover/blocks/player colors all
+        correct (no render bug); suite 21 green; 2-player re-verified on the 27-part user
+        level (90 snapshots each, ids 1+2); added README hosting section.

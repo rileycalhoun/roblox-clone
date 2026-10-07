@@ -44,6 +44,24 @@ cargo test  # 18 tests green
 
 Scripting (`onJoin/onTouch/tick`): `clone_studio script-check demo.rplace 3`.
 
+Headless checks: `clone_app demo.rplace --screenshot viewport.ppm`,
+`clone_app demo.rplace --screenshot-play play.ppm 240`,
+`clone_app demo.rplace --soak 550`.
+
+## Hosting a game on a remote server
+
+One TCP port, no auth in the MVP (anyone with the address can join):
+
+```sh
+cargo build --release
+./target/release/clone_studio demo-place mygame.rplace
+./target/release/clone_server 0.0.0.0:8772 mygame.rplace   # leave running (tmux/nohup/systemd)
+```
+
+Friends join with `./target/debug/clone_app mygame.rplace --join YOUR_HOST:8772 --name them`.
+The server is authoritative (60 Hz sim, 20 Hz snapshots); scripts (movers,
+kill bricks) run server-side so every client sees the same game.
+
 ## Layout
 
 - `crates/core`: math/model/physics/place/net/preview (std only)
